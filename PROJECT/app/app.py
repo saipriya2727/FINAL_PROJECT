@@ -1,4 +1,3 @@
-
 import os
 import sqlite3
 import streamlit as st
@@ -7,16 +6,24 @@ import joblib
 import smtplib
 from email.mime.text import MIMEText
 
-# ---------------- DATABASE ----------------
+# ---------------- PATH SETUP ----------------
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DB_PATH = os.path.join(BASE_DIR, "database", "health.db")
+
+DB_DIR = os.path.join(BASE_DIR, "database")
+os.makedirs(DB_DIR, exist_ok=True)
+
+DB_PATH = os.path.join(DB_DIR, "health.db")
+
+MODEL_DIR = os.path.join(BASE_DIR, "models")
+
+# ---------------- DATABASE ----------------
 
 def get_connection():
     return sqlite3.connect(DB_PATH)
 
-conn=get_connection()
-cursor=conn.cursor()
+conn = get_connection()
+cursor = conn.cursor()
 
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS users(
@@ -47,7 +54,7 @@ conn.close()
 def send_email(receiver, precautions):
 
     sender_email="reddysaipriya2727@gmail.com"
-    sender_password="xnbx jqts eush zewl"
+    sender_password="YOUR_APP_PASSWORD"
 
     body=f"""
 Hello,
@@ -58,7 +65,7 @@ Doctor Recommendations:
 
 {precautions}
 
-Stay healthy.
+Stay Healthy!
 """
 
     msg=MIMEText(body)
@@ -83,14 +90,12 @@ st.markdown("""
 background:linear-gradient(to right,#dbeafe,#fce7f3);
 }
 
-/* Sidebar color */
 section[data-testid="stSidebar"]{
 background:#1e293b;
 color:white;
 }
 
-/* Buttons styling */
-.stButton>button {
+.stButton>button{
 background-color:#2563eb;
 color:white;
 border-radius:8px;
@@ -101,12 +106,11 @@ font-weight:bold;
 border:none;
 }
 
-.stButton>button:hover {
+.stButton>button:hover{
 background-color:#1d4ed8;
 color:white;
 }
 
-/* Result box */
 .result-box{
 padding:20px;
 border-radius:15px;
@@ -145,26 +149,13 @@ option=st.sidebar.selectbox(
 
 # ---------------- SIGNUP ----------------
 
-
 if option=="Patient Signup":
 
     st.sidebar.subheader("Create Account")
 
-    name = st.sidebar.text_input(
-        "Name",
-        placeholder="Enter your full name"
-    )
-
-    email = st.sidebar.text_input(
-        "Email",
-        placeholder="Enter your email ID"
-    )
-
-    password = st.sidebar.text_input(
-        "Password",
-        type="password",
-        placeholder="Create your password"
-    )
+    name=st.sidebar.text_input("Name",placeholder="Enter your full name")
+    email=st.sidebar.text_input("Email",placeholder="Enter your email ID")
+    password=st.sidebar.text_input("Password",type="password",placeholder="Create your password")
 
     if st.sidebar.button("Register"):
 
@@ -179,25 +170,16 @@ if option=="Patient Signup":
         conn.commit()
         conn.close()
 
-        st.sidebar.success("Registration Successful. Please login.")
+        st.sidebar.success("Registration Successful. Please Login.")
 
-# ---------------- PATIENT LOGIN ----------------
 # ---------------- PATIENT LOGIN ----------------
 
 if option=="Patient Login":
 
     st.sidebar.subheader("Patient Login")
 
-    email = st.sidebar.text_input(
-        "Email",
-        placeholder="Enter your email ID"
-    )
-
-    password = st.sidebar.text_input(
-        "Password",
-        type="password",
-        placeholder="Enter your password"
-    )
+    email=st.sidebar.text_input("Email",placeholder="Enter your email ID")
+    password=st.sidebar.text_input("Password",type="password",placeholder="Enter your password")
 
     if st.sidebar.button("Login"):
 
@@ -215,38 +197,26 @@ if option=="Patient Login":
             st.session_state.user=email
             st.session_state.role="patient"
             st.sidebar.success("Login Successful")
-
         else:
             st.sidebar.error("Invalid Credentials")
 
         conn.close()
 
 # ---------------- DOCTOR LOGIN ----------------
-# ---------------- DOCTOR LOGIN ----------------
 
 if option=="Doctor Login":
 
     st.sidebar.subheader("Doctor Login")
 
-    email = st.sidebar.text_input(
-        "Doctor Email",
-        placeholder="Enter doctor email ID"
-    )
-
-    password = st.sidebar.text_input(
-        "Password",
-        type="password",
-        placeholder="Enter doctor password"
-    )
+    email=st.sidebar.text_input("Doctor Email",placeholder="Enter doctor email ID")
+    password=st.sidebar.text_input("Password",type="password",placeholder="Enter doctor password")
 
     if st.sidebar.button("Login"):
 
         if email=="doctor@hospital.com" and password=="doctor123":
-
             st.session_state.user=email
             st.session_state.role="doctor"
             st.sidebar.success("Doctor Login Successful")
-
         else:
             st.sidebar.error("Invalid Doctor Login")
 
@@ -255,14 +225,14 @@ if option=="Doctor Login":
 if st.session_state.user:
 
     st.title("🧠 AI Clinical Screening System")
+    st.info("Main Risk Factor Considered: **Obesity (BMI & Waist Circumference)**")
 
-    st.info("Main risk factor considered: **Obesity (BMI & Waist Circumference)**")
+    # Load models
+    pcos_model=joblib.load(os.path.join(MODEL_DIR,"pcos_model.pkl"))
+    pcos_scaler=joblib.load(os.path.join(MODEL_DIR,"pcos_scaler.pkl"))
 
-    pcos_model=joblib.load("../models/pcos_model.pkl")
-    pcos_scaler=joblib.load("../models/pcos_scaler.pkl")
-
-    mets_model=joblib.load("../models/mets_model.pkl")
-    mets_scaler=joblib.load("../models/mets_scaler.pkl")
+    mets_model=joblib.load(os.path.join(MODEL_DIR,"mets_model.pkl"))
+    mets_scaler=joblib.load(os.path.join(MODEL_DIR,"mets_scaler.pkl"))
 
 # ---------------- PATIENT PANEL ----------------
 
@@ -334,46 +304,14 @@ if st.session_state.user:
             conn=get_connection()
             cursor=conn.cursor()
 
-            cursor.execute("""
-            DELETE FROM reports
-            WHERE user_email=? AND condition=?
-            """,(st.session_state.user,condition))
-
-            cursor.execute("""
-            INSERT INTO reports(user_email,condition,risk_score,risk_level)
-            VALUES(?,?,?,?)
-            """,(st.session_state.user,condition,float(prob),risk))
+            cursor.execute("DELETE FROM reports WHERE user_email=?",(st.session_state.user,))
+            cursor.execute(
+            "INSERT INTO reports(user_email,condition,risk_score,risk_level) VALUES(?,?,?,?)",
+            (st.session_state.user,condition,float(prob),risk)
+            )
 
             conn.commit()
             conn.close()
-
-        # show report
-        conn=get_connection()
-        cursor=conn.cursor()
-
-        cursor.execute("""
-        SELECT risk_score,risk_level,doctor_comment,precautions
-        FROM reports WHERE user_email=?
-        """,(st.session_state.user,))
-
-        report=cursor.fetchone()
-
-        if report:
-
-            score,level,comment,precautions=report
-
-            st.subheader("Your Report")
-
-            st.write("Risk Score:",round(float(score)*100,2),"%")
-            st.write("Risk Level:",level)
-
-            if comment:
-                st.write("Doctor Comment:",comment)
-
-            if precautions:
-                st.write("Precautions:",precautions)
-
-        conn.close()
 
 # ---------------- DOCTOR DASHBOARD ----------------
 
@@ -421,5 +359,3 @@ if st.session_state.user:
 else:
 
     st.title("Please Login to Continue")
-
-
