@@ -10,7 +10,7 @@ from email.mime.text import MIMEText
 # ---------------- DATABASE ----------------
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DB_PATH = os.path.join(BASE_DIR,"database","health.db")
+DB_PATH = os.path.join(BASE_DIR, "database", "health.db")
 
 def get_connection():
     return sqlite3.connect(DB_PATH)
@@ -258,11 +258,11 @@ if st.session_state.user:
 
     st.info("Main risk factor considered: **Obesity (BMI & Waist Circumference)**")
 
-    pcos_model=joblib.load("models/pcos_model.pkl")
-    pcos_scaler=joblib.load("models/pcos_scaler.pkl")
+    pcos_model=joblib.load("../models/pcos_model.pkl")
+    pcos_scaler=joblib.load("../models/pcos_scaler.pkl")
 
-    mets_model=joblib.load("models/mets_model.pkl")
-    mets_scaler=joblib.load("models/mets_scaler.pkl")
+    mets_model=joblib.load("../models/mets_model.pkl")
+    mets_scaler=joblib.load("../models/mets_scaler.pkl")
 
 # ---------------- PATIENT PANEL ----------------
 
@@ -421,4 +421,5 @@ if st.session_state.user:
 else:
 
     st.title("Please Login to Continue")
+
 
