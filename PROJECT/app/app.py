@@ -258,11 +258,11 @@ if st.session_state.user:
 
     st.info("Main risk factor considered: **Obesity (BMI & Waist Circumference)**")
 
-    pcos_model=joblib.load("../models/pcos_model.pkl")
-    pcos_scaler=joblib.load("../models/pcos_scaler.pkl")
+    pcos_model=joblib.load("models/pcos_model.pkl")
+    pcos_scaler=joblib.load("models/pcos_scaler.pkl")
 
-    mets_model=joblib.load("../models/mets_model.pkl")
-    mets_scaler=joblib.load("../models/mets_scaler.pkl")
+    mets_model=joblib.load("models/mets_model.pkl")
+    mets_scaler=joblib.load("models/mets_scaler.pkl")
 
 # ---------------- PATIENT PANEL ----------------
 
@@ -421,3 +421,4 @@ if st.session_state.user:
 else:
 
     st.title("Please Login to Continue")
+
