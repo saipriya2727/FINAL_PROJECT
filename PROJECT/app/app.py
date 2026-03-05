@@ -53,8 +53,8 @@ conn.close()
 
 def send_email(receiver, precautions):
 
-    sender_email="reddysaipriya2727@gmail.com"
-    sender_password="YOUR_APP_PASSWORD"
+    sender_email="screeningapproach12@gmail.com"
+    sender_password="clrx kchg nkrg vwed"
 
     body=f"""
 Hello,
