@@ -50,13 +50,12 @@ conn.commit()
 conn.close()
 
 # ---------------- EMAIL FUNCTION ----------------
-
 def send_email(receiver, precautions):
 
-    sender_email="screeningapproach12@gmail.com"
-    sender_password="clrxkchgnkrgvwed"
+    sender_email = st.secrets["EMAIL"]
+    sender_password = st.secrets["PASSWORD"]
 
-    body=f"""
+    body = f"""
 Hello,
 
 Thank you for using the AI Clinical Screening System.
@@ -65,15 +64,15 @@ Doctor Recommendations:
 
 {precautions}
 
-Stay Healthy!
+Stay healthy.
 """
 
-    msg=MIMEText(body)
-    msg["Subject"]="Health Screening Advice"
-    msg["From"]=sender_email
-    msg["To"]=receiver
+    msg = MIMEText(body)
+    msg["Subject"] = "Health Screening Advice"
+    msg["From"] = sender_email
+    msg["To"] = receiver
 
-    server=smtplib.SMTP("smtp.gmail.com",587)
+    server = smtplib.SMTP("smtp.gmail.com",587)
     server.starttls()
     server.login(sender_email,sender_password)
     server.sendmail(sender_email,receiver,msg.as_string())
@@ -359,4 +358,5 @@ if st.session_state.user:
 else:
 
     st.title("Please Login to Continue")
+
 
