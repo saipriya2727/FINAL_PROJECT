@@ -3,6 +3,33 @@ import sqlite3
 import streamlit as st
 import numpy as np
 import joblib
+import resend
+
+# ---------------- EMAIL CONFIG ----------------
+
+resend.api_key = st.secrets["RESEND_API_KEY"]
+
+def send_email(receiver, precautions):
+
+    params = {
+        "from": "Health System <onboarding@resend.dev>",
+        "to": [receiver],
+        "subject": "Doctor Advice - AI Clinical Screening System",
+        "html": f"""
+        <h2>Health Screening Result</h2>
+        <p>Your report has been reviewed by the doctor.</p>
+
+        <h3>Doctor Advice:</h3>
+        <p>{precautions}</p>
+
+        <br>
+
+        <p>Please maintain a healthy lifestyle.</p>
+        <p><b>AI Clinical Screening System</b></p>
+        """
+    }
+
+    resend.Emails.send(params)
 
 # ---------------- PATH SETUP ----------------
 
@@ -218,15 +245,14 @@ if st.session_state.user:
 
             bmi=st.number_input("BMI",10.0,60.0,25.0)
 
-            # BMI Indicator
             if bmi < 18.5:
                 st.info("BMI Category: Underweight")
             elif bmi < 25:
                 st.success("BMI Category: Normal Weight")
             elif bmi < 30:
-                st.warning("BMI Category: Overweight (Obesity Risk Increasing)")
+                st.warning("BMI Category: Overweight")
             else:
-                st.error("BMI Category: Obese - High Risk Factor for PCOS & Metabolic Syndrome")
+                st.error("BMI Category: Obese - High Risk")
 
             waist=st.number_input("Waist Circumference",20.0,60.0,30.0)
             whr=st.number_input("Waist Hip Ratio",0.5,2.0,0.9)
@@ -276,11 +302,6 @@ if st.session_state.user:
 
             risk="High Risk" if pred==1 else "Low Risk"
 
-            if pred==1:
-                st.markdown(f"<div class='result-box high'>⚠ HIGH RISK<br>{round(prob*100,2)}%</div>",unsafe_allow_html=True)
-            else:
-                st.markdown(f"<div class='result-box low'>✅ LOW RISK<br>{round(prob*100,2)}%</div>",unsafe_allow_html=True)
-
             conn=get_connection()
             cursor=conn.cursor()
 
@@ -294,35 +315,6 @@ if st.session_state.user:
             conn.commit()
             conn.close()
 
-        # Show patient report
-
-        conn=get_connection()
-        cursor=conn.cursor()
-
-        cursor.execute(
-        "SELECT risk_score,risk_level,doctor_comment,precautions FROM reports WHERE user_email=?",
-        (st.session_state.user,)
-        )
-
-        report=cursor.fetchone()
-
-        if report:
-
-            score,level,comment,precautions=report
-
-            st.subheader("Your Report")
-
-            st.write("Risk Score:",round(float(score)*100,2),"%")
-            st.write("Risk Level:",level)
-
-            if comment:
-                st.write("Doctor Comment:",comment)
-
-            if precautions:
-                st.write("Precautions:",precautions)
-
-        conn.close()
-
 # ---------------- DOCTOR DASHBOARD ----------------
 
     if st.session_state.role=="doctor":
@@ -333,7 +325,6 @@ if st.session_state.user:
         cursor=conn.cursor()
 
         cursor.execute("SELECT * FROM reports")
-
         patients=cursor.fetchall()
 
         for p in patients:
@@ -357,7 +348,9 @@ if st.session_state.user:
 
                 conn.commit()
 
-                st.success("Advice saved successfully")
+                send_email(email,precaution_input)
+
+                st.success("Advice saved and email sent")
 
             st.markdown("---")
 
