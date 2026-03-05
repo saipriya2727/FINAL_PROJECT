@@ -164,7 +164,6 @@ if option=="Patient Login":
             st.session_state.user=email
             st.session_state.role="patient"
             st.sidebar.success("Login Successful")
-
         else:
             st.sidebar.error("Invalid credentials")
 
@@ -218,6 +217,17 @@ if st.session_state.user:
         if condition=="PCOS (Female)":
 
             bmi=st.number_input("BMI",10.0,60.0,25.0)
+
+            # BMI Indicator
+            if bmi < 18.5:
+                st.info("BMI Category: Underweight")
+            elif bmi < 25:
+                st.success("BMI Category: Normal Weight")
+            elif bmi < 30:
+                st.warning("BMI Category: Overweight (Obesity Risk Increasing)")
+            else:
+                st.error("BMI Category: Obese - High Risk Factor for PCOS & Metabolic Syndrome")
+
             waist=st.number_input("Waist Circumference",20.0,60.0,30.0)
             whr=st.number_input("Waist Hip Ratio",0.5,2.0,0.9)
             weight=st.number_input("Weight",30.0,150.0,60.0)
@@ -284,7 +294,7 @@ if st.session_state.user:
             conn.commit()
             conn.close()
 
-        # show patient report
+        # Show patient report
 
         conn=get_connection()
         cursor=conn.cursor()
@@ -354,5 +364,4 @@ if st.session_state.user:
         conn.close()
 
 else:
-
     st.title("Please Login to Continue")
