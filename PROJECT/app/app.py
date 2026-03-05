@@ -3,19 +3,16 @@ import sqlite3
 import streamlit as st
 import numpy as np
 import joblib
-import smtplib
-from email.mime.text import MIMEText
 
 # ---------------- PATH SETUP ----------------
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
 DB_DIR = os.path.join(BASE_DIR, "database")
+MODEL_DIR = os.path.join(BASE_DIR, "models")
+
 os.makedirs(DB_DIR, exist_ok=True)
 
 DB_PATH = os.path.join(DB_DIR, "health.db")
-
-MODEL_DIR = os.path.join(BASE_DIR, "models")
 
 # ---------------- DATABASE ----------------
 
@@ -49,38 +46,9 @@ precautions TEXT
 conn.commit()
 conn.close()
 
-# ---------------- EMAIL FUNCTION ----------------
-def send_email(receiver, precautions):
-
-    sender_email = st.secrets["EMAIL"]
-    sender_password = st.secrets["PASSWORD"]
-
-    body = f"""
-Hello,
-
-Thank you for using the AI Clinical Screening System.
-
-Doctor Recommendations:
-
-{precautions}
-
-Stay healthy.
-"""
-
-    msg = MIMEText(body)
-    msg["Subject"] = "Health Screening Advice"
-    msg["From"] = sender_email
-    msg["To"] = receiver
-
-    server = smtplib.SMTP("smtp.gmail.com",587)
-    server.starttls()
-    server.login(sender_email,sender_password)
-    server.sendmail(sender_email,receiver,msg.as_string())
-    server.quit()
-
 # ---------------- PAGE ----------------
 
-st.set_page_config(page_title="AI Clinical Screening",layout="wide")
+st.set_page_config(page_title="AI Clinical Screening", layout="wide")
 
 st.markdown("""
 <style>
@@ -129,7 +97,7 @@ color:white;
 }
 
 </style>
-""",unsafe_allow_html=True)
+""", unsafe_allow_html=True)
 
 # ---------------- SESSION ----------------
 
@@ -152,9 +120,9 @@ if option=="Patient Signup":
 
     st.sidebar.subheader("Create Account")
 
-    name=st.sidebar.text_input("Name",placeholder="Enter your full name")
-    email=st.sidebar.text_input("Email",placeholder="Enter your email ID")
-    password=st.sidebar.text_input("Password",type="password",placeholder="Create your password")
+    name=st.sidebar.text_input("Name",placeholder="Enter your name")
+    email=st.sidebar.text_input("Email",placeholder="Enter your email")
+    password=st.sidebar.text_input("Password",type="password",placeholder="Create password")
 
     if st.sidebar.button("Register"):
 
@@ -177,8 +145,8 @@ if option=="Patient Login":
 
     st.sidebar.subheader("Patient Login")
 
-    email=st.sidebar.text_input("Email",placeholder="Enter your email ID")
-    password=st.sidebar.text_input("Password",type="password",placeholder="Enter your password")
+    email=st.sidebar.text_input("Email",placeholder="Enter email")
+    password=st.sidebar.text_input("Password",type="password",placeholder="Enter password")
 
     if st.sidebar.button("Login"):
 
@@ -196,8 +164,9 @@ if option=="Patient Login":
             st.session_state.user=email
             st.session_state.role="patient"
             st.sidebar.success("Login Successful")
+
         else:
-            st.sidebar.error("Invalid Credentials")
+            st.sidebar.error("Invalid credentials")
 
         conn.close()
 
@@ -207,26 +176,28 @@ if option=="Doctor Login":
 
     st.sidebar.subheader("Doctor Login")
 
-    email=st.sidebar.text_input("Doctor Email",placeholder="Enter doctor email ID")
-    password=st.sidebar.text_input("Password",type="password",placeholder="Enter doctor password")
+    email=st.sidebar.text_input("Doctor Email")
+    password=st.sidebar.text_input("Password",type="password")
 
     if st.sidebar.button("Login"):
 
         if email=="doctor@hospital.com" and password=="doctor123":
+
             st.session_state.user=email
             st.session_state.role="doctor"
             st.sidebar.success("Doctor Login Successful")
+
         else:
-            st.sidebar.error("Invalid Doctor Login")
+            st.sidebar.error("Invalid doctor login")
 
 # ---------------- MAIN APP ----------------
 
 if st.session_state.user:
 
     st.title("🧠 AI Clinical Screening System")
-    st.info("Main Risk Factor Considered: **Obesity (BMI & Waist Circumference)**")
 
-    # Load models
+    st.info("Main Risk Factor: **Obesity (BMI & Waist Circumference)**")
+
     pcos_model=joblib.load(os.path.join(MODEL_DIR,"pcos_model.pkl"))
     pcos_scaler=joblib.load(os.path.join(MODEL_DIR,"pcos_scaler.pkl"))
 
@@ -304,6 +275,7 @@ if st.session_state.user:
             cursor=conn.cursor()
 
             cursor.execute("DELETE FROM reports WHERE user_email=?",(st.session_state.user,))
+
             cursor.execute(
             "INSERT INTO reports(user_email,condition,risk_score,risk_level) VALUES(?,?,?,?)",
             (st.session_state.user,condition,float(prob),risk)
@@ -311,6 +283,35 @@ if st.session_state.user:
 
             conn.commit()
             conn.close()
+
+        # show patient report
+
+        conn=get_connection()
+        cursor=conn.cursor()
+
+        cursor.execute(
+        "SELECT risk_score,risk_level,doctor_comment,precautions FROM reports WHERE user_email=?",
+        (st.session_state.user,)
+        )
+
+        report=cursor.fetchone()
+
+        if report:
+
+            score,level,comment,precautions=report
+
+            st.subheader("Your Report")
+
+            st.write("Risk Score:",round(float(score)*100,2),"%")
+            st.write("Risk Level:",level)
+
+            if comment:
+                st.write("Doctor Comment:",comment)
+
+            if precautions:
+                st.write("Precautions:",precautions)
+
+        conn.close()
 
 # ---------------- DOCTOR DASHBOARD ----------------
 
@@ -339,17 +340,14 @@ if st.session_state.user:
 
             if st.button("Save Advice",key=f"s{id}"):
 
-                cursor.execute("""
-                UPDATE reports
-                SET doctor_comment=?,precautions=?
-                WHERE id=?
-                """,(comment_input,precaution_input,id))
+                cursor.execute(
+                "UPDATE reports SET doctor_comment=?,precautions=? WHERE id=?",
+                (comment_input,precaution_input,id)
+                )
 
                 conn.commit()
 
-                send_email(email,precaution_input)
-
-                st.success("Advice saved and email sent")
+                st.success("Advice saved successfully")
 
             st.markdown("---")
 
@@ -358,5 +356,3 @@ if st.session_state.user:
 else:
 
     st.title("Please Login to Continue")
-
-
