@@ -3,31 +3,6 @@ import sqlite3
 import streamlit as st
 import numpy as np
 import joblib
-import resend
-
-# ---------------- EMAIL CONFIG ----------------
-
-resend.api_key = st.secrets.get("RESEND_API_KEY")
-
-def send_email(receiver, precautions):
-
-    params = {
-        "from": "Health System <onboarding@resend.dev>",
-        "to": [receiver],
-        "subject": "Doctor Advice - AI Clinical Screening",
-        "html": f"""
-        <h2>Doctor Advice</h2>
-        <p>Your health report has been reviewed.</p>
-
-        <b>Doctor Recommendations:</b>
-        <p>{precautions}</p>
-
-        <br>
-        <p>AI Clinical Screening System</p>
-        """
-    }
-
-    resend.Emails.send(params)
 
 # ---------------- PATH SETUP ----------------
 
@@ -64,7 +39,8 @@ condition TEXT,
 risk_score REAL,
 risk_level TEXT,
 doctor_comment TEXT,
-precautions TEXT
+precautions TEXT,
+notification INTEGER DEFAULT 0
 )
 """)
 
@@ -77,6 +53,7 @@ st.set_page_config(page_title="AI Clinical Screening", layout="wide")
 
 st.markdown("""
 <style>
+
 .stApp{
 background:linear-gradient(to right,#dbeafe,#fce7f3);
 }
@@ -105,6 +82,7 @@ font-weight:bold;
 
 .high{background:#dc2626;color:white;}
 .low{background:#16a34a;color:white;}
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -118,7 +96,7 @@ if "user" not in st.session_state:
 
 st.sidebar.title("Account")
 
-option = st.sidebar.selectbox(
+option=st.sidebar.selectbox(
 "Login As",
 ["Patient Login","Doctor Login","Patient Signup"]
 )
@@ -146,7 +124,7 @@ if option=="Patient Signup":
         conn.commit()
         conn.close()
 
-        st.sidebar.success("Registration Successful")
+        st.sidebar.success("Registration Successful. Please Login.")
 
 # ---------------- PATIENT LOGIN ----------------
 
@@ -175,7 +153,7 @@ if option=="Patient Login":
             st.session_state.role="patient"
             st.sidebar.success("Login Successful")
         else:
-            st.sidebar.error("Invalid credentials")
+            st.sidebar.error("Invalid Credentials")
 
 # ---------------- DOCTOR LOGIN ----------------
 
@@ -195,7 +173,7 @@ if option=="Doctor Login":
             st.sidebar.success("Doctor Login Successful")
 
         else:
-            st.sidebar.error("Invalid doctor login")
+            st.sidebar.error("Invalid Doctor Login")
 
 # ---------------- MAIN APP ----------------
 
@@ -226,6 +204,7 @@ if st.session_state.user:
 
             bmi=st.number_input("BMI",10.0,60.0,25.0)
 
+            # BMI indicator
             if bmi < 18.5:
                 st.info("BMI Category: Underweight")
             elif bmi < 25:
@@ -301,6 +280,38 @@ if st.session_state.user:
             conn.commit()
             conn.close()
 
+        # show patient report
+
+        conn=get_connection()
+        cursor=conn.cursor()
+
+        cursor.execute(
+        "SELECT risk_score,risk_level,doctor_comment,precautions,notification FROM reports WHERE user_email=?",
+        (st.session_state.user,)
+        )
+
+        report=cursor.fetchone()
+
+        if report:
+
+            score,level,comment,precautions,notify=report
+
+            if notify==1:
+                st.success("🔔 Doctor has reviewed your report")
+
+            st.subheader("Your Report")
+
+            st.write("Risk Score:",round(float(score)*100,2),"%")
+            st.write("Risk Level:",level)
+
+            if comment:
+                st.write("Doctor Comment:",comment)
+
+            if precautions:
+                st.write("Precautions:",precautions)
+
+        conn.close()
+
 # ---------------- DOCTOR DASHBOARD ----------------
 
     if st.session_state.role=="doctor":
@@ -313,9 +324,19 @@ if st.session_state.user:
         cursor.execute("SELECT * FROM reports")
         patients=cursor.fetchall()
 
+        total=len(patients)
+        high=sum(1 for p in patients if p[4]=="High Risk")
+        low=sum(1 for p in patients if p[4]=="Low Risk")
+
+        st.write("Total Patients:",total)
+        st.write("High Risk:",high)
+        st.write("Low Risk:",low)
+
+        st.markdown("---")
+
         for p in patients:
 
-            id,email,cond,score,level,comment,precautions=p
+            id,email,cond,score,level,comment,precautions,notify=p
 
             st.write("Patient:",email)
             st.write("Condition:",cond)
@@ -328,21 +349,18 @@ if st.session_state.user:
             if st.button("Save Advice",key=f"s{id}"):
 
                 cursor.execute(
-                "UPDATE reports SET doctor_comment=?,precautions=? WHERE id=?",
+                "UPDATE reports SET doctor_comment=?,precautions=?,notification=1 WHERE id=?",
                 (comment_input,precaution_input,id)
                 )
 
                 conn.commit()
 
-                try:
-                    send_email(email,precaution_input)
-                    st.success("Advice saved and email sent")
-                except:
-                    st.warning("Advice saved but email could not be sent")
+                st.success("Advice saved successfully")
 
             st.markdown("---")
 
         conn.close()
 
 else:
+
     st.title("Please Login to Continue")
