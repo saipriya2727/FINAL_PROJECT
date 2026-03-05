@@ -54,7 +54,7 @@ conn.close()
 def send_email(receiver, precautions):
 
     sender_email="screeningapproach12@gmail.com"
-    sender_password="clrx kchg nkrg vwed"
+    sender_password="clrxkchgnkrgvwed"
 
     body=f"""
 Hello,
@@ -359,3 +359,4 @@ if st.session_state.user:
 else:
 
     st.title("Please Login to Continue")
+
