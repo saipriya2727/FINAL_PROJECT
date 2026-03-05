@@ -11,25 +11,31 @@ resend.api_key = st.secrets["RESEND_API_KEY"]
 
 def send_email(receiver, precautions):
 
-    params = {
-        "from": "Health System <onboarding@resend.dev>",
-        "to": [receiver],
-        "subject": "Doctor Advice - AI Clinical Screening System",
-        "html": f"""
-        <h2>Health Screening Result</h2>
-        <p>Your report has been reviewed by the doctor.</p>
+    try:
+        params = {
+            "from": "Health System <onboarding@resend.dev>",
+            "to": [receiver],
+            "subject": "Doctor Advice - AI Clinical Screening System",
+            "html": f"""
+            <h2>Health Screening Result</h2>
 
-        <h3>Doctor Advice:</h3>
-        <p>{precautions}</p>
+            <p>Your report has been reviewed by the doctor.</p>
 
-        <br>
+            <h3>Doctor Advice</h3>
+            <p>{precautions}</p>
 
-        <p>Please maintain a healthy lifestyle.</p>
-        <p><b>AI Clinical Screening System</b></p>
-        """
-    }
+            <br>
 
-    resend.Emails.send(params)
+            <p>Please maintain a healthy lifestyle.</p>
+
+            <b>AI Clinical Screening System</b>
+            """
+        }
+
+        resend.Emails.send(params)
+
+    except:
+        st.warning("Email service temporarily unavailable")
 
 # ---------------- PATH SETUP ----------------
 
@@ -90,19 +96,12 @@ color:white;
 }
 
 .stButton>button{
-background-color:#2563eb;
+background:#2563eb;
 color:white;
 border-radius:8px;
 height:40px;
 width:100%;
-font-size:16px;
 font-weight:bold;
-border:none;
-}
-
-.stButton>button:hover{
-background-color:#1d4ed8;
-color:white;
 }
 
 .result-box{
@@ -136,7 +135,7 @@ if "user" not in st.session_state:
 
 st.sidebar.title("Account")
 
-option=st.sidebar.selectbox(
+option = st.sidebar.selectbox(
 "Login As",
 ["Patient Login","Doctor Login","Patient Signup"]
 )
@@ -147,9 +146,9 @@ if option=="Patient Signup":
 
     st.sidebar.subheader("Create Account")
 
-    name=st.sidebar.text_input("Name",placeholder="Enter your name")
-    email=st.sidebar.text_input("Email",placeholder="Enter your email")
-    password=st.sidebar.text_input("Password",type="password",placeholder="Create password")
+    name=st.sidebar.text_input("Name")
+    email=st.sidebar.text_input("Email")
+    password=st.sidebar.text_input("Password",type="password")
 
     if st.sidebar.button("Register"):
 
@@ -164,7 +163,7 @@ if option=="Patient Signup":
         conn.commit()
         conn.close()
 
-        st.sidebar.success("Registration Successful. Please Login.")
+        st.sidebar.success("Registration Successful")
 
 # ---------------- PATIENT LOGIN ----------------
 
@@ -172,8 +171,8 @@ if option=="Patient Login":
 
     st.sidebar.subheader("Patient Login")
 
-    email=st.sidebar.text_input("Email",placeholder="Enter email")
-    password=st.sidebar.text_input("Password",type="password",placeholder="Enter password")
+    email=st.sidebar.text_input("Email")
+    password=st.sidebar.text_input("Password",type="password")
 
     if st.sidebar.button("Login"):
 
@@ -208,11 +207,9 @@ if option=="Doctor Login":
     if st.sidebar.button("Login"):
 
         if email=="doctor@hospital.com" and password=="doctor123":
-
             st.session_state.user=email
             st.session_state.role="doctor"
             st.sidebar.success("Doctor Login Successful")
-
         else:
             st.sidebar.error("Invalid doctor login")
 
@@ -224,11 +221,11 @@ if st.session_state.user:
 
     st.info("Main Risk Factor: **Obesity (BMI & Waist Circumference)**")
 
-    pcos_model=joblib.load(os.path.join(MODEL_DIR,"pcos_model.pkl"))
-    pcos_scaler=joblib.load(os.path.join(MODEL_DIR,"pcos_scaler.pkl"))
+    pcos_model = joblib.load(os.path.join(MODEL_DIR,"pcos_model.pkl"))
+    pcos_scaler = joblib.load(os.path.join(MODEL_DIR,"pcos_scaler.pkl"))
 
-    mets_model=joblib.load(os.path.join(MODEL_DIR,"mets_model.pkl"))
-    mets_scaler=joblib.load(os.path.join(MODEL_DIR,"mets_scaler.pkl"))
+    mets_model = joblib.load(os.path.join(MODEL_DIR,"mets_model.pkl"))
+    mets_scaler = joblib.load(os.path.join(MODEL_DIR,"mets_scaler.pkl"))
 
 # ---------------- PATIENT PANEL ----------------
 
@@ -236,7 +233,7 @@ if st.session_state.user:
 
         st.subheader("Enter Medical Details")
 
-        condition=st.selectbox(
+        condition = st.selectbox(
         "Select Screening",
         ["PCOS (Female)","Metabolic Syndrome (Male)"]
         )
@@ -302,6 +299,11 @@ if st.session_state.user:
 
             risk="High Risk" if pred==1 else "Low Risk"
 
+            if pred==1:
+                st.markdown(f"<div class='result-box high'>⚠ HIGH RISK<br>{round(prob*100,2)}%</div>",unsafe_allow_html=True)
+            else:
+                st.markdown(f"<div class='result-box low'>✅ LOW RISK<br>{round(prob*100,2)}%</div>",unsafe_allow_html=True)
+
             conn=get_connection()
             cursor=conn.cursor()
 
@@ -325,6 +327,7 @@ if st.session_state.user:
         cursor=conn.cursor()
 
         cursor.execute("SELECT * FROM reports")
+
         patients=cursor.fetchall()
 
         for p in patients:
